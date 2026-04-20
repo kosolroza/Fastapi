@@ -3,6 +3,7 @@ from fastapi import FastAPI, Response, status, HTTPException, Depends, APIRouter
 from sqlalchemy.orm import Session
 from ..database import get_db
 from typing import List, Optional
+from .. import oauth2
 
 router = APIRouter(
     prefix = "/posts",
@@ -11,16 +12,18 @@ router = APIRouter(
 
 # get method to test the connection to the database
 @router.get("/", response_model = List[schema.Post])
-def get_posts(db : Session = Depends(get_db)):
+def get_posts(db : Session = Depends(get_db), 
+                 user_id: int = Depends(oauth2.get_current_user)):
     posts = db.query(models.Post).all() 
     return posts
 
 # Create a post
 @router.post("/", status_code= status.HTTP_201_CREATED, response_model = schema.Post) 
-def create_posts(post : schema.PostCreate, db : Session = Depends(get_db)):
+def create_posts(post : schema.PostCreate, db : Session = Depends(get_db), 
+                 current_user: int = Depends(oauth2.get_current_user)):
 
+    print(current_user.email)
     new_post = models.Post(**post.dict()) 
-    
     db.add(new_post) 
     db.commit() 
     db.refresh(new_post)    
@@ -38,7 +41,8 @@ def get_post(id : int, response : Response, db : Session = Depends(get_db)):
 
 # delete a post 
 @router.delete("/{id}", status_code= status.HTTP_204_NO_CONTENT)
-def delete_post(id : int, db : Session = Depends(get_db)):
+def delete_post(id : int, db : Session = Depends(get_db), 
+                 current_user: int = Depends(oauth2.get_current_user)):
     deleted_post = db.query(models.Post).filter(models.Post.id == id).first() 
 
     if deleted_post == None:
@@ -52,7 +56,8 @@ def delete_post(id : int, db : Session = Depends(get_db)):
 
 # update a post
 @router.put("/{id}", response_model = schema.Post)
-def update_post(id: int, updated_post : schema.PostCreate, db : Session = Depends(get_db)):
+def update_post(id: int, updated_post : schema.PostCreate, db : Session = Depends(get_db), 
+                 current_user: int = Depends(oauth2.get_current_user)):
     post_query = db.query(models.Post).filter(models.Post.id == id) 
     post = post_query.first() 
     
